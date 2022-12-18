@@ -43,7 +43,7 @@ Architecture: Conv2D(4, (8, 8), relu) + Conv2D(8, (6, 6), relu) + Softmax(10) (N
 
 3. Model: Some hidden layers. No softmax layer. The paper mentioned both approaches with and without a softmax. I am currently more interested in the one without the softmax. 
 
-4. The paper says "the hidden activities in all but the first hidden layer are then used as the inputs to a softmax that has been learned during training." This is not how I did it. I simply used the last hidden layer as the inputs to a softmax. The result for using Dense layer as the hidden layers is not bad, but that with Conv2D as hidden layers is very poor.
+4. The paper says "the hidden activities in all but the first hidden layer are then used as the inputs to a softmax that has been learned during training." This is not how I did it. I used all hidden layers. The result for using Dense layer as the hidden layers is not bad, but that with Conv2D as hidden layers is very poor.
 
 #### My comparisons 1
 Architecture: Dense(16, relu) + Dense(10, relu) + Softmax(10) (Note 1, Note 2)

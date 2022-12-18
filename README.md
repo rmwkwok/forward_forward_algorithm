@@ -2,8 +2,8 @@
 
 Paper: [Geoffrey Hinton. The Forward-Forward Algorithm: Some Preliminary Investigations](https://www.cs.toronto.edu/~hinton/FFA13.pdf)
 
-#### This repo.
-1. Implemented unsupervised examples (paper section 3.2) and supervised examples (section 3.3) based on my understanding.
+### 0. This repo.
+1. Implemented the forward forward algorithm with the unsupervised examples (paper section 3.2) and the supervised examples (section 3.3) based on my understanding of the paper.
 
 2. Used MNIST data (60000 training samples + 10000 test samples). Hyperparameter searching isn't implemented in this repo.
 

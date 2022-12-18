@@ -6,6 +6,8 @@ from ffobjects import FFLoss, FFModel_Unsupervised, FFModel_Supervised, FFLayer,
 ### Data
 ###############
 
+print('Loading data')
+
 # configurations
 batch_size = 128
 
@@ -37,6 +39,8 @@ ds_valid = tf.data.Dataset\
 ### FF algorithm with Dense hidden layers
 ###############
 
+print('Training FF algorithm with Dense hidden layers')
+
 set_seed()
 preNormalization = lambda X: X/(tf.norm(X, keepdims=True, axis=-1) + 1e-7)
 
@@ -51,6 +55,8 @@ dense_supervised_ff.train(ds_train, ds_valid, epochs=200, metric=tf.keras.metric
 ###############
 ### FF algorithm with Conv2D hidden layers
 ###############
+
+print('Training FF algorithm with Conv2D hidden layers')
 
 set_seed()
 preNormalization = lambda X: X/(tf.norm(X, keepdims=True, axis=-1) + 1e-7)

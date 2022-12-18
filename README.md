@@ -1,4 +1,4 @@
-### Forward Forward algorithm
+### Forward Forward algorithm in Tensorflow
 
 Paper: [Geoffrey Hinton. The Forward-Forward Algorithm: Some Preliminary Investigations](https://www.cs.toronto.edu/~hinton/FFA13.pdf)
 

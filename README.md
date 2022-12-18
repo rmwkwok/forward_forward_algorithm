@@ -60,9 +60,10 @@ Architecture: Conv2D(4, (8, 8), relu) + Conv2D(8, (6, 6), relu) + Softmax(10) (N
 ### 2. Using FF to model top-down effects in perception (paper section 3.4)
 To be implemented.
 
-### Note:
-Note 1: Only trainable layers included, go to the script for the full version
-Note 2: Softmax is only used in the BP model. FF model does not require a softmax. 
+### Notes:
+1. Only trainable layers included, go to the script for the full version
+
+2. Softmax is only used in the BP model. FF model does not require a softmax. 
 
 
 

@@ -41,7 +41,7 @@ Architecture: Conv2D(4, (8, 8), relu) + Conv2D(8, (6, 6), relu) + Softmax(10) (N
 
 2. Labels: The labels are one-hot encoded and then get overlayed in the first 10 pixels of the images for training. For prediction of an image, the paper suggested 2 approaches, and I use the one that copies the image 10 times and overlays each copied image a different label, then passes these 10 images through the network and whichever has the highest accumulated activity goodness, its label is the prediction.
 
-3. Model: Some hidden layers. No softmax layer. The paper mentioned both approaches with and without a softmax. I am currently more interested in the one without the softmax. The 
+3. Model: Some hidden layers. No softmax layer. The paper mentioned both approaches with and without a softmax. I am currently more interested in the one without the softmax. 
 
 4. The paper says "the hidden activities in all but the first hidden layer are then used as the inputs to a softmax that has been learned during training." This is not how I did it. I simply used the last hidden layer as the inputs to a softmax. The result for using Dense layer as the hidden layers is not bad, but that with Conv2D as hidden layers is very poor.
 
@@ -57,7 +57,7 @@ Architecture: Conv2D(4, (8, 8), relu) + Conv2D(8, (6, 6), relu) + Softmax(10) (N
 - BP accuracy 92.2%,  10 epochs, Adam(lr=0.0001)
 - FF accuracy <12% (no prediction capability)
 
-### 2. Using FF to model top-down effects in perception (paper section 3.4)
+### 3. Using FF to model top-down effects in perception (paper section 3.4)
 To be implemented.
 
 ### Notes:

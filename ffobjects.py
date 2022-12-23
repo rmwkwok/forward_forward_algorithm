@@ -386,7 +386,7 @@ class FFModel(tf.keras.Model):
 
 def ff_dense_block(units, activation, lr, th, idx, x):
     '''
-          output1         output 2
+          output 1         output 2
             ^                ^
             |                |
     x --> Dense --> pre-Normalization
@@ -426,9 +426,9 @@ def ff_conv2d_block(filters, kernel_size, activation, max_pool_size,
                     lr, th, idx, x):
     '''
     
-                 output 1         output 2           output 3
-                    ^                ^                  ^
-                    |                |                  |
+        output 1  output 2         output 3           output 4
+            ^        ^                ^                  ^
+            |        |                |                  |
             ---> Flatten     ---> Flatten           ---------
             |                |                      |       |
     x --> Conv2D --> pre-Normalization -----> MaxPooling2D  |

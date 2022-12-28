@@ -14,8 +14,9 @@ Paper: [Geoffrey Hinton. The Forward-Forward Algorithm: Some Preliminary Investi
 
 4. Used MNIST data (60000 training samples + 10000 test samples). Instead of predicting for 10 different digits, this repo predicts only 5 (number zero to four). The numbers five to nine are reserved as negative samples. This is not how the paper did it, instead the paper used all digits as positive, and created negatives by image augmentation.
 
-
 5. In my implementation, each trainable layer has its own metrics function, loss function and optimizer.
+
+6. [**IMPORTANT**] In principle, with FF algorithm, we can save a lot of memory because we don't need to remember anything outside of a layer to update the weights in that layer. However, memory saving is NOT my interest about this algorithm, but how it works and what it can do. Therefore, my implementation does NOT realize that memory saving capability. I am using gradient tape over the whole model, so it saves as many things as backprop algorithm will do. However, I do NOT use anything from other layers to update a layer. In short, gradients of other layers are there, but I do not use them. This is FF, but this is not the ultimate, memory-saving version of FF. 
 
 
 ### 1. Unsupervised-wise VS. supervised-wise FF

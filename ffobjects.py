@@ -9,6 +9,10 @@ Title: The Forward-Forward Algorithm: Some Preliminary Investigations
 Link: https://www.cs.toronto.edu/~hinton/FFA13.pdf
 '''
 
+class FFConstants:
+    POS = 'pos'
+    NEG = 'neg'
+
 class FFLoss(tf.keras.losses.BinaryCrossentropy):
     '''
     Implementing the goodness function suggested by the paper.
@@ -110,8 +114,8 @@ def FFLayer(layer_class, **kwargs):
             self.ff_optimizer = optimizer
             self.ff_is_goodness_softmax = is_goodness_softmax
             self.ff_report_metric = {
-                'pos_pass': report_metric_pos,
-                'neg_pass': report_metric_neg,
+                FFConstants.POS: report_metric_pos,
+                FFConstants.NEG: report_metric_neg,
             }
             
         def ff_reset_metric(self):
@@ -235,7 +239,7 @@ class FFModel(tf.keras.Model):
         
         string = ''
         for layer in self.ff_layers:
-            for pn in ['pos_pass', 'neg_pass']:
+            for pn in [FFConstants.POS, FFConstants.NEG]:
                 
                 temp = []
                 for tv in ['train', 'valid']:
@@ -274,8 +278,8 @@ class FFModel(tf.keras.Model):
         
         do_evaluate = lambda e: e % eval_every == 0 or e == epochs-1
         
-        ds_train = [('pos_pass', ds_train_pos), ('neg_pass', ds_train_neg)]
-        ds_valid = [('pos_pass', ds_valid_pos), ('neg_pass', ds_valid_neg)]
+        ds_train = [(FFConstants.POS, ds_train_pos), (FFConstants.NEG, ds_train_neg)]
+        ds_valid = [(FFConstants.POS, ds_valid_pos), (FFConstants.NEG, ds_valid_neg)]
         datasets = [('train', ds_train), ('valid', ds_valid)]
         
         for epoch in range(epochs):
@@ -290,8 +294,8 @@ class FFModel(tf.keras.Model):
                 continue
                 
             record = {'epoch': epoch,
-                      'train': {'pos_pass': {}, 'neg_pass': {}, },
-                      'valid': {'pos_pass': {}, 'neg_pass': {}, },}
+                      'train': {FFConstants.POS: {}, FFConstants.NEG: {}, },
+                      'valid': {FFConstants.POS: {}, FFConstants.NEG: {}, },}
             
             for tv, ds in datasets:
                 for _pass, dataset in ds:
@@ -312,9 +316,9 @@ class FFModel(tf.keras.Model):
         positive pass, and 0 in a negative pass.
         '''
         if layer.ff_do_ff:
-            if _pass == 'pos_pass':
+            if _pass == FFConstants.POS:
                 return y_true * 0 + 1 
-            elif _pass == 'neg_pass':
+            elif _pass == FFConstants.NEG:
                 return y_true * 0 
         else:
             return y_true
@@ -329,7 +333,7 @@ class FFModel(tf.keras.Model):
             losses = []
             for layer, y_pred in zip(self.ff_layers, self(X, training=True)):
                 if layer.ff_loss_fn and\
-                    (layer.ff_do_ff or _pass == 'pos_pass'):
+                    (layer.ff_do_ff or _pass == FFConstants.POS):
                     yt = self.ff_convert_label(y_true, layer, _pass)
                     losses.append((layer, layer.ff_loss_fn(yt, y_pred)))
                 
@@ -372,7 +376,7 @@ class FFModel(tf.keras.Model):
 
         for name, y_pred in zip(self.output_names, self(X)):
             layer = self.get_layer(name)
-            if layer.ff_do_ff or _pass == 'pos_pass':
+            if layer.ff_do_ff or _pass == FFConstants.POS:
                 if layer.ff_metric:
                     if layer.ff_is_goodness_softmax:
                         yt = y_true

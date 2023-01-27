@@ -129,7 +129,7 @@ class FFModel(tf.keras.Model):
     the model is created by linking the FFLayer Functional APIs 
     (inheriting Tensorflow), because we are expected to include all
     trainable and evaluated layers in the list of output of the model in
-    order for the `FFModel.train` call to train them. 
+    order for the `FFModel.ff_train` call to train them. 
     `tf.keras.Sequential` does not allow us to customize the list of
     output nodes.
 
@@ -169,13 +169,14 @@ class FFModel(tf.keras.Model):
     model = FFModel(x0, [y1, y2, y3, y4])
     ```
     
-    To train the model, call `.train(...)` instead of `.fit(...)`. 
+    To train the model, call `.ff_train(...)` instead of `.fit(...)`. 
 
     ```
-    model.train(ds_train_pos, ds_train_neg, ds_valid_pos, ds_valid_neg, 
-                epochs=10, eval_every=1, 
-                report=['pos_pass/goodness softmax', 
-                        'pos_pass/dense softmax']
+    model.ff_train(
+        ds_train_pos, ds_train_neg, ds_valid_pos, ds_valid_neg, 
+        epochs=10, eval_every=1, 
+        report=['pos_pass/goodness softmax', 
+                'pos_pass/dense softmax']
     ```
 
     `ds_train_pos`, `ds_train_neg`, `ds_valid_pos`, `ds_valid_neg` are 
@@ -243,8 +244,8 @@ class FFModel(tf.keras.Model):
         
         print(f'epoch {epoch: 5d}{string}')
             
-    def train(self, ds_train_pos, ds_train_neg, ds_valid_pos, ds_valid_neg, 
-              epochs, eval_every=5, report=[]):
+    def ff_train(self, ds_train_pos, ds_train_neg, ds_valid_pos, ds_valid_neg, 
+                 epochs, eval_every=5, report=[]):
         '''
         train the model. Use this method instead of `.fit(...)` for
         forward-forward algorithm. Use `.fit(...)` for backprop 

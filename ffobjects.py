@@ -84,6 +84,14 @@ def FFLayer(layer_class, **kwargs):
             label. The output of the layer is reshaped to be
             `(None, NUM_CLASS)` to perform a softmax-like evalatuion 
             with the metric function defined in `metric`
+            
+        report_metric_pos: A `bool` indicating whether metric evaluation
+            result for the positive pass should be reported during
+            training
+            
+        report_metric_neg: A `bool` indicating whether metric evaluation
+            result for the negative pass should be reported during
+            training
 
     Returns:
         A `Layer` object inheriting the `layer_class` which can be used
@@ -92,13 +100,19 @@ def FFLayer(layer_class, **kwargs):
 
     class Layer(layer_class):
         def __init__(self, do_ff=False, optimizer=None, loss_fn=None, 
-                     metric=None, is_goodness_softmax=False, **kwargs):
+                     metric=None, is_goodness_softmax=False, 
+                     report_metric_pos=False, report_metric_neg=False,
+                     **kwargs):
             super().__init__(**kwargs)
             self.ff_do_ff = do_ff
             self.ff_metric = metric
             self.ff_loss_fn = loss_fn
             self.ff_optimizer = optimizer
             self.ff_is_goodness_softmax = is_goodness_softmax
+            self.ff_report_metric = {
+                'pos_pass': report_metric_pos,
+                'neg_pass': report_metric_neg,
+            }
             
         def ff_reset_metric(self):
             if self.ff_metric:
@@ -175,8 +189,7 @@ class FFModel(tf.keras.Model):
     model.ff_train(
         ds_train_pos, ds_train_neg, ds_valid_pos, ds_valid_neg, 
         epochs=10, eval_every=1, 
-        report=['pos_pass/goodness softmax', 
-                'pos_pass/dense softmax']
+        )
     ```
 
     `ds_train_pos`, `ds_train_neg`, `ds_valid_pos`, `ds_valid_neg` are 
@@ -188,14 +201,6 @@ class FFModel(tf.keras.Model):
     is based on the the data produced in the input data iterables, 
     otherwise, the evaluation is on modified dataset that has 
     one-hot-encoded labels overlayed.
-    
-    We can choose to report which metric results at printing an epoch's 
-    progress, and it is in a list of strings where each string should 
-    have the format of 'pos_pass/<layer_name>' or 
-    'neg_pass/<layer_name>' to indicate that it is a result of which
-    layer and is on a positive or a negative dataset. For every item in 
-    `report`, it prints the training set result followed by the
-    validation set's.
     '''
     def __init__(self, is_unsupervised=True, *args, **kwargs):
         '''
@@ -222,30 +227,31 @@ class FFModel(tf.keras.Model):
         for layer in self.ff_layers:
             layer.ff_get_metric_results(results_dict)
             
-    def ff_print_record(self, record, report):
+    def ff_print_record(self, record):
         '''
-        At the end of an epoch, print metric results chosen in `report`.
+        At the end of an epoch, print metric results.
         '''
         epoch = record['epoch']
         
         string = ''
-        for item in report:
-            _pass, layer_name = item.split('/')
-            temp = []
-            for tv in ['train', 'valid']:
-                for pn in ['pos_pass', 'neg_pass']:
-                    if layer_name in record[tv][pn] and pn == _pass:
-                        x = record[tv][pn][layer_name]
+        for layer in self.ff_layers:
+            for pn in ['pos_pass', 'neg_pass']:
+                
+                temp = []
+                for tv in ['train', 'valid']:
+                    if layer.name in record[tv][pn] and\
+                        layer.ff_report_metric[pn]:
+                        x = record[tv][pn][layer.name]
                         temp.append(f'{x:.6f}')
                         
-            if len(temp):
-                temp = ' '.join(temp)
-                string = f'{string} | {layer_name} {temp}'
+                if len(temp):
+                    temp = ' '.join(temp)
+                    string = f'{string} | {layer.name}/{pn} {temp}'
         
         print(f'epoch {epoch: 5d}{string}')
             
     def ff_train(self, ds_train_pos, ds_train_neg, ds_valid_pos, ds_valid_neg, 
-                 epochs, eval_every=5, report=[]):
+                 epochs, eval_every=5):
         '''
         train the model. Use this method instead of `.fit(...)` for
         forward-forward algorithm. Use `.fit(...)` for backprop 
@@ -255,12 +261,10 @@ class FFModel(tf.keras.Model):
             ds_train_pos, ds_train_neg, ds_valid_pos, ds_valid_neg: 
                 iterables of (X, y)
             epochs: int. Number of training epochs
-            eval_every: int. Evaluate once every N epochs.
-            report: list of strings. A list of metric to report at the 
-                end of an epoch. The string should the format of 
-                'pos_pass/<layer_name>' or 'neg_pass/<layer_name>' to
-                indicate that it is a result of which layer and is on a
-                positive or a negative dataset.
+            eval_every: int. Evaluate once every N epochs. Which layer's
+                evaluation will be printed is controlled by the
+                the layer's ff_report_metric_pos and 
+                ff_report_metric_neg parameters
 
         Returns:
             history: a history of all evaluation results, reported or 
@@ -297,7 +301,7 @@ class FFModel(tf.keras.Model):
                     self.ff_get_all_metric_results(record[tv][_pass])
                     
             history.append(record)
-            self.ff_print_record(record, report)
+            self.ff_print_record(record)
 
         return history
     

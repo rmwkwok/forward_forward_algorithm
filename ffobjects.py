@@ -38,6 +38,9 @@ class FFMetric(tf.keras.metrics.BinaryCrossentropy):
         self.threshold = tf.cast(threshold, tf.float32)
         
     def update_state(self, y_true, y_pred, sample_weight=None):
+        m = tf.shape(y_true)[0]
+        y_pred = y_pred[:m]
+        
         axis = tf.range(tf.rank(y_pred))[1:]
         y_pred = tf.reduce_sum(y_pred**2, axis=axis)
         y_pred = y_pred - self.threshold
@@ -254,16 +257,18 @@ class FFModel(tf.keras.Model):
         
         print(f'epoch {epoch: 5d}{string}')
             
-    def ff_train(self, ds_train_pos, ds_train_neg, ds_valid_pos, ds_valid_neg, 
-                 epochs, eval_every=5):
+    def ff_train(self, ds_train, ds_valid_for_eval, epochs, eval_every=5):
         '''
         train the model. Use this method instead of `.fit(...)` for
         forward-forward algorithm. Use `.fit(...)` for backprop 
         algorithm.
         
         Args:
-            ds_train_pos, ds_train_neg, ds_valid_pos, ds_valid_neg: 
-                iterables of (X, y)
+            ds_train: a tuple of of two training datasets. The first is
+                for the positive pass, and the second the negative pass
+            ds_valid_for_eval: a list of tuples. Each tuple has two
+                evaluation datasets. The first is for the positive pass,
+                and the second the negative pass
             epochs: int. Number of training epochs
             eval_every: int. Evaluate once every N epochs. Which layer's
                 evaluation will be printed is controlled by the
@@ -275,17 +280,14 @@ class FFModel(tf.keras.Model):
                 not.
         '''
         history = []
+        _passes = [FFConstants.POS, FFConstants.NEG]
         
         do_evaluate = lambda e: e % eval_every == 0 or e == epochs-1
-        
-        ds_train = [(FFConstants.POS, ds_train_pos), (FFConstants.NEG, ds_train_neg)]
-        ds_valid = [(FFConstants.POS, ds_valid_pos), (FFConstants.NEG, ds_valid_neg)]
-        datasets = [('train', ds_train), ('valid', ds_valid)]
         
         for epoch in range(epochs):
             
             # Gradient descent
-            for _pass, dataset in ds_train:
+            for _pass, dataset in zip(_passes, ds_train):
                 for X, y_true in dataset:
                     self.ff_gradient_descent(X, y_true, _pass)
             
@@ -297,8 +299,8 @@ class FFModel(tf.keras.Model):
                       'train': {FFConstants.POS: {}, FFConstants.NEG: {}, },
                       'valid': {FFConstants.POS: {}, FFConstants.NEG: {}, },}
             
-            for tv, ds in datasets:
-                for _pass, dataset in ds:
+            for tv, ds in ds_valid_for_eval:
+                for _pass, dataset in zip(_passes, ds):
                     self.ff_reset_all_metrics()
                     for X, y_true in dataset:
                         self.ff_evaluate(X, y_true, _pass)
@@ -371,8 +373,6 @@ class FFModel(tf.keras.Model):
         evaluation; otherwise, the model's output on part one is used 
         for evaluation.
         '''
-        m = tf.shape(X)[0]
-        X = create_eval_X(X, self.ff_is_unsupervised)
 
         for name, y_pred in zip(self.output_names, self(X)):
             layer = self.get_layer(name)
@@ -380,13 +380,10 @@ class FFModel(tf.keras.Model):
                 if layer.ff_metric:
                     if layer.ff_is_goodness_softmax:
                         yt = y_true
-                        yp = tf.reshape(y_pred[m:], (m, NUM_CLASS))
                     else:
                         yt = self.ff_convert_label(y_true, layer, _pass)
-                        yp = y_pred[:m]
                     
-                    layer.ff_metric.update_state(yt, yp)
-                
+                    layer.ff_metric.update_state(yt, y_pred)
                     
                     
 ###############

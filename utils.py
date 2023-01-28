@@ -147,3 +147,10 @@ def create_eval_X(X, is_unsupervised):
     
     return tf.concat([part1, part2], 0)
 
+@tf.function
+def eval_unsupervised(X, y):
+    return create_eval_X(X, True), y
+
+@tf.function
+def eval_supervised(X, y):
+    return create_eval_X(X, False), y

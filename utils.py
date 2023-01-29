@@ -43,14 +43,15 @@ OVERLAY_LABELS = tf.reshape(
     (NUM_CLASS, ) + IMG_SHAPE
 )
 
-# OVERLAY_DEFAULT: shape (1, 28, 28)
-# The first 5 elements are 0.2
-OVERLAY_DEFAULT = tf.reduce_sum(
-    OVERLAY_LABELS, keepdims=True, axis=0)/NUM_CLASS
+OVERLAY_LABELS_SUM = tf.reduce_sum(OVERLAY_LABELS, keepdims=True, axis=0)
 
-# OVERLAY_BITMASK: shape (28, 28)
-# The first 5 elements are 0.
-OVERLAY_BITMASK = 1. - tf.reduce_sum(OVERLAY_LABELS, axis=0)
+# OVERLAY_DEFAULT: shape (1, 28, 28)
+# The first 5 elements are 0.2, rest are 0
+OVERLAY_DEFAULT = OVERLAY_LABELS_SUM/NUM_CLASS
+
+# OVERLAY_BITMASK: shape (1, 28, 28)
+# The first 5 elements are 0, rest are 1
+OVERLAY_BITMASK = 1. - OVERLAY_LABELS_SUM
 
 @tf.function
 def overlay_y_in_X(X, y):
@@ -72,15 +73,6 @@ def overlay_y_in_X(X, y):
 def randomize_y(X, y):
     '''
     Generate randomized `y` for one sample.
-    
-    Args:
-        X: the shape is `IMG_SHAPE`
-        y: int
-        
-    Returns:
-        X: the shape is `IMG_SHAPE`
-        y: int
-        
     '''
     y = tf.random.uniform(tf.shape(y), maxval=NUM_CLASS, dtype=tf.int32)
     

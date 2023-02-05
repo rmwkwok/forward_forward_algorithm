@@ -87,6 +87,15 @@ def FFLayer(layer_class, **kwargs):
         def ff_get_metric_results(self, results_dict):
             if self.ff_metric:
                 results_dict[self.name] = self.ff_metric.result().numpy()
+                
+        @property
+        def ff_is_pos_pass_trainable(self):
+            return self.ff_loss_fn and self.ff_optimizer
+                
+        @property
+        def ff_is_neg_pass_trainable(self):
+            return self.ff_loss_fn and self.ff_optimizer and self.ff_do_ff
+            
             
     Layer.__name__ = layer_class.__name__
     
@@ -162,7 +171,11 @@ class FFModel(tf.keras.Model):
         '''
         super().__init__(*args, **kwargs)
         self.ff_layers = [self.get_layer(n) for n in self.output_names]
-    
+        self.ff_pos_pass_trainable_layers = [l for l in self.ff_layers 
+                                             if l.ff_is_pos_pass_trainable]
+        self.ff_neg_pass_trainable_layers = [l for l in self.ff_layers 
+                                             if l.ff_is_neg_pass_trainable]
+        
     def ff_reset_all_metrics(self):
         for layer in self.ff_layers:
             layer.ff_reset_metric()
@@ -223,10 +236,15 @@ class FFModel(tf.keras.Model):
         
         for epoch in range(epochs):
             
-            # Gradient descent
-            for _pass, dataset in zip(_passes, ds_train):
-                for X, y_true in dataset:
-                    self._ff_gradient_descent(X, y_true, _pass)
+            # Positive pass Gradient descent
+            for X, y_true in ds_train[0]:
+                gradients = self._ff_pos_pass_compute_gradients(X, y_true)
+                self._ff_pos_pass_update_params(gradients)
+                
+            # Negative pass Gradient descent
+            for X, y_true in ds_train[1]:
+                gradients = self._ff_neg_pass_compute_gradients(X, y_true)
+                self._ff_neg_pass_update_params(gradients)
             
             # Evaluation
             if not do_evaluate(epoch):
@@ -263,23 +281,51 @@ class FFModel(tf.keras.Model):
             return y_true
         
     @tf.function
-    def _ff_gradient_descent(self, X, y_true, _pass):
+    def _ff_pos_pass_compute_gradients(self, X, y_true):
+        losses = []
+        gradients = []
+        
         with tf.GradientTape(persistent=True) as tape:
-            losses = []
             for layer, y_pred in zip(self.ff_layers, self(X, training=True)):
-                if layer.ff_loss_fn and\
-                    (layer.ff_do_ff or _pass == FFConstants.POS):
-                    yt = self._ff_convert_label(y_true, layer, _pass)
-                    losses.append((layer, layer.ff_loss_fn(yt, y_pred)))
-                
-        for layer, loss in losses:
-            if layer.ff_optimizer:
-                grads = tape.gradient(loss, layer.trainable_weights)
-                layer.ff_optimizer.apply_gradients(
-                    zip(grads, layer.trainable_weights))
-
+                if layer.ff_is_pos_pass_trainable:
+                    yt = self._ff_convert_label(y_true, layer, FFConstants.POS)
+                    losses.append(layer.ff_loss_fn(yt, y_pred))
+        
+        for layer, loss in zip(self.ff_pos_pass_trainable_layers, losses):
+                gradients.append(tape.gradient(loss, layer.trainable_weights))
+            
         del tape
+        return gradients
+        
+    @tf.function
+    def _ff_neg_pass_compute_gradients(self, X, y_true):
+        losses = []
+        gradients = []
+        
+        with tf.GradientTape(persistent=True) as tape:
+            for layer, y_pred in zip(self.ff_layers, self(X, training=True)):
+                if layer.ff_is_neg_pass_trainable:
+                    yt = self._ff_convert_label(y_true, layer, FFConstants.NEG)
+                    losses.append(layer.ff_loss_fn(yt, y_pred))
+        
+        for layer, loss in zip(self.ff_neg_pass_trainable_layers, losses):
+                gradients.append(tape.gradient(loss, layer.trainable_weights))
+            
+        del tape
+        return gradients
     
+    @tf.function
+    def _ff_pos_pass_update_params(self, gradients):
+        for layer, grads in zip(self.ff_pos_pass_trainable_layers, gradients):
+            layer.ff_optimizer.apply_gradients(
+                zip(grads, layer.trainable_weights))
+    
+    @tf.function
+    def _ff_neg_pass_update_params(self, gradients):
+        for layer, grads in zip(self.ff_neg_pass_trainable_layers, gradients):
+            layer.ff_optimizer.apply_gradients(
+                zip(grads, layer.trainable_weights))
+
     @tf.function
     def _ff_evaluate(self, X, y_true, _pass):
         for name, y_pred in zip(self.output_names, self(X)):

@@ -104,6 +104,6 @@ Their validation accuracies are:
 
 A similar setting with backprop can reach over 99% easily within 20 epochs.
 
-For other results, observations, and the layers' details, refer to examples.ipynb.
+For other results, observations, validation curves, and the layers' details, refer to examples.ipynb.
 
 

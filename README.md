@@ -56,9 +56,12 @@ Pictorically:
 
 ## How FF training works
 
-In each epoch, for unsupervised-FF training, 3 datasets pass through the sequence. First comes the positive pass. After an positive mini-batch passes through a `FFDense`, a gradient descent is done to update that `FFDense`. The transformed mini-batch then passes through the next `FFDense`, and another gradient descent is done to update the second `FFDense`, and the same for the other `FFDense`'s and the `FFSoftmax`. Then comes the negative pass which goes through only all the `FFDense` layers and performs gradient descent on them.
+In each epoch, for unsupervised-FF training, 3 datasets pass through the sequence. 
+1. First comes the positive data. After an positive mini-batch passes through the first `FFDense`, a gradient descent is done to update that `FFDense`. The transformed mini-batch then passes through the next `FFDense`, and another gradient descent is done to update the second `FFDense`, and the same sequence of operations are done for the other `FFDense`'s and the `FFSoftmax`. 
+2. Then comes the negative pass which goes through only all the `FFDense` layers and performs gradient descent on them.
+3. Last comes an evaluation dataset of only positive data. 
 
-The 3 datasets each required different tasks (out of the 5 listed above) on each layer in the training sequence. To make the best of Tensorflow's Graph for fast computation, the `TrainMgr` is responsible for storing built Graphs so that they can be reused from epoch to epoch.  
+The 3 datasets each requires the layers to perform a different set of tasks (among the 5 listed above). Therefore, 3 different tensorflow graphs can be built based on a `train_seq` python function as demonstrated above. To over graph retracing, the `TrainMgr` is responsible for storing built Graphs so that they can be reused from epoch to epoch.  
 
 ## Unsupervised-wise FF vs. Supervised-wise FF
 

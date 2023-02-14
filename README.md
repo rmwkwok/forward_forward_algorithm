@@ -67,7 +67,7 @@ My understanding is that an unsupervised-wise-FF-trained layer does not use any 
 ## Supervised-wise FF flow chart
 
 ![supervisedFF](./images/supervisedFF.png)
-An extra `FFOverlay` layer is added to the top of the sequence which will overlays the one-hot label on training data. At evaluation (`TASK_EVAL_DUPED`), the `FFOverlay` will replicate a sample and overlays every one of the 5 one-hot label on the replicated samples.
+An extra `FFOverlay` layer is added to the top of the sequence which will overlays on the sample its one-hot encoded label. At evaluation (`TASK_EVAL_DUPED`), the `FFOverlay` will replicate a sample to 5 copies which will each have one of the 5 one-hot encoded labels.
 
 An `FFGoodness` replaces the `FFSoftmax` to receive some `FFDense`'s outputs for computing goodness score.
 

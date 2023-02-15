@@ -61,7 +61,7 @@ In each epoch, for unsupervised-FF training, 3 datasets pass through the sequenc
 2. Then comes the negative pass which goes through only all the `FFDense` layers and performs gradient descent on them.
 3. Last comes an evaluation dataset of only positive data. 
 
-The 3 datasets each requires the layers to perform a different set of tasks (among the 5 listed above). Therefore, 3 different tensorflow graphs can be built based on a `train_seq` python function as demonstrated above. To over graph retracing, the `TrainMgr` is responsible for storing built Graphs so that they can be reused from epoch to epoch.  
+The 3 datasets each requires the layers to perform a different set of tasks (among the 5 listed above). Therefore, 3 different tensorflow graphs can be built based on a `train_seq` python function as demonstrated above. To avoid graph retracing, the `TrainMgr` is responsible for storing built Graphs so that they can be reused from epoch to epoch.  
 
 ## Unsupervised-wise FF vs. Supervised-wise FF
 

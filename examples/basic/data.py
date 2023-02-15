@@ -1,3 +1,6 @@
+import sys
+sys.path.append('../../ffobjects/')
+
 import numpy as np
 import tensorflow as tf
 from ffobjects import BaseFFLayer

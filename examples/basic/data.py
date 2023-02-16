@@ -52,7 +52,7 @@ def create_mnist_datasets(seed=10, batch_size=128, include_duped=False):
             datasets for the tasks of `TASK_TRAIN_POS`, `TASK_TRAIN_NEG`
             and `TASK_EVAL_POS` respectively. When it is `True`, returns
             a list of four datasets by adding an extra one for 
-            `TASK_EVAL_DUPED` which is needed to evaluate 
+            `TASK_EVAL_DUPED_POS` which is needed to evaluate 
             supervised-wise FF layers.
     '''
 
@@ -82,8 +82,8 @@ def create_mnist_datasets(seed=10, batch_size=128, include_duped=False):
     
     if include_duped:
         datasets.extend([
-            # (BaseFFLayer.TASK_EVAL_DUPED,  eval_ff_train),
-            (BaseFFLayer.TASK_EVAL_DUPED,  eval_ff_valid),
+            # (BaseFFLayer.TASK_EVAL_DUPED_POS,  eval_ff_train),
+            (BaseFFLayer.TASK_EVAL_DUPED_POS,  eval_ff_valid),
         ])
     
     return datasets

@@ -35,7 +35,7 @@ class TrainMgr:
         Args:
             datasets: a `list` of `(task, tf.data.Dataset)`. `task` can
                 take any one of `TASK_TRANSFORM`, `TASK_TRAIN_POS`
-                `TASK_TRAIN_NEG`, `TASK_EVAL_POS`, `TASK_EVAL_DUPED` 
+                `TASK_TRAIN_NEG`, `TASK_EVAL_POS`, `TASK_EVAL_DUPED_POS` 
                 defined in class `BaseFFLayer`.
             trainable_layers_list: a `list` of 
                 `[[layer_1, layer_2, ...], epochs]`. Each listing 

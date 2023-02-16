@@ -138,7 +138,7 @@ class BaseFFLayer:
     
     def ff_task_eval_pos(self, X, y_true):
         y_pred = self(X)
-        self.ff_metric.update_state(y_true, y_pred)
+        self._ff_update_metric_pos(y_true, y_pred)
         return y_pred
     
     def ff_task_eval_duped_pos(self, X, y_true):
@@ -152,6 +152,9 @@ class BaseFFLayer:
     
     def _ff_call_loss_neg(self, y_true, y_pred):
         return self.ff_loss_neg(y_true, y_pred)
+    
+    def _ff_update_metric_pos(self, y_true, y_pred):
+        self.ff_metric.update_state(y_true, y_pred)
         
     
 # FFLayers inheriting the base class and a tf.keras.layers.Layer

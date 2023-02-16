@@ -45,16 +45,17 @@ class BaseFFLayer:
         Turn a Tensorflow layer into a FFLayer by defining a class
         inheriting this class and the Tensorflow layer's class.
 
-        5 tasks are predefined. They accept `X` and `y_true` as input,
+        6 tasks are predefined. They accept `X` and `y_true` as input,
         and produces `y_pred` as output:
             - transform: e.g. tf.keras.layers.Dense(X)
             - train_pos: optimize on positive pass data
             - train_neg: optimize on negative pass data
-            - eval: evaluate layer
-            - eval_duped: evaluate layer while expecting "duplicated"
-                  data. At evaluation, data is duplicated before gets
-                  overlayed with different labels is passed through.
-                  This is for supervised-wise FF training.
+            - eval_pos: evaluate layer
+            - eval_neg: evaluate layer
+            - eval_duped_pos: evaluate layer while expecting 
+                "duplicated" data. At evaluation, data is duplicated
+                before gets overlayed with different labels is passed
+                through. This is for supervised-wise FF training.
 
         The `ff_do_task()` calls the default task which is settable by
         calling the `ff_set_task()` method. This arrangement is for the
@@ -119,6 +120,31 @@ class BaseFFLayer:
         '''
         return self.ff_task_fn(X, y_true)
 
+    def ff_task_transform(self, X, y_true):
+        return self(X)
+
+    def ff_task_train_pos(self, X, y_true):
+        return self(X)
+
+    def ff_task_train_neg(self, X, y_true):
+        return self(X)
+
+    def ff_task_eval_pos(self, X, y_true):
+        return self(X)
+
+    def ff_task_eval_neg(self, X, y_true):
+        return self(X)
+
+    def ff_task_eval_duped_pos(self, X, y_true):
+        return self(X)
+
+# FFLayers inheriting the base class and a tf.keras.layers.Layer
+class FFDense(BaseFFLayer, tf.keras.layers.Dense):
+    def __init__(self, th_pos, th_neg, **kwargs):
+        super().__init__(
+            activation='relu', metric=FFMetric(),
+            loss_pos=FFLoss(th_pos), loss_neg=FFLoss(th_neg), **kwargs)
+
     def ff_task_train_pos(self, X, y_true):
         with tf.GradientTape() as tape:
             y_pred = self(X)
@@ -145,16 +171,6 @@ class BaseFFLayer:
         self._ff_update_metric_neg(y_true, y_pred)
         return y_pred
 
-    def ff_task_eval_duped_pos(self, X, y_true):
-        m = tf.shape(y_true)[0]
-        y_pred = self(X)
-        y_pred = tf.reshape(y_pred, (m, -1))
-        self.ff_metric_duped.update_state(y_true, y_pred)
-        return y_pred
-
-    def ff_task_transform(self, X, y_true):
-        return self(X)
-
     def _ff_call_loss_pos(self, y_true, y_pred):
         return self.ff_loss_pos(y_true, y_pred)
 
@@ -167,28 +183,6 @@ class BaseFFLayer:
     def _ff_update_metric_neg(self, y_true, y_pred):
         self.ff_metric.update_state(y_true, y_pred)
 
-# FFLayers inheriting the base class and a tf.keras.layers.Layer
-class FFDense(BaseFFLayer, tf.keras.layers.Dense):
-    def __init__(self, th_pos, th_neg, **kwargs):
-        super().__init__(
-            activation='relu', metric=FFMetric(),
-            loss_pos=FFLoss(th_pos), loss_neg=FFLoss(th_neg), **kwargs)
-
-    def ff_task_train_pos(self, X, y_true):
-        return super().ff_task_train_pos(X, y_true)
-
-    def ff_task_train_neg(self, X, y_true):
-        return super().ff_task_train_neg(X, y_true)
-
-    def ff_task_eval_pos(self, X, y_true):
-        return super().ff_task_eval_pos(X, y_true)
-
-    def ff_task_eval_neg(self, X, y_true):
-        return super().ff_task_eval_neg(X, y_true)
-
-    def ff_task_eval_duped_pos(self, X, y_true):
-        return self(X)
-
 class FFSoftmax(BaseFFLayer, tf.keras.layers.Dense):
     def __init__(self, **kwargs):
         super().__init__(
@@ -197,19 +191,17 @@ class FFSoftmax(BaseFFLayer, tf.keras.layers.Dense):
             **kwargs)
 
     def ff_task_train_pos(self, X, y_true):
-        return super().ff_task_train_pos(X, y_true)
-
-    def ff_task_train_neg(self, X, y_true):
-        return self(X)
+        with tf.GradientTape() as tape:
+            y_pred = self(X)
+            loss = self.ff_loss_pos(y_true, y_pred)
+        grads = tape.gradient(loss, self.trainable_weights)
+        self.ff_opt.apply_gradients(zip(grads, self.trainable_weights))
+        return y_pred
 
     def ff_task_eval_pos(self, X, y_true):
-        return super().ff_task_eval_pos(X, y_true)
-
-    def ff_task_eval_neg(self, X, y_true):
-        return self(X)
-
-    def ff_task_eval_duped_pos(self, X, y_true):
-        return self(X)
+        y_pred = self(X)
+        self.ff_metric.update_state(y_true, y_pred)
+        return y_pred
 
 class FFGoodness(BaseFFLayer, tf.keras.layers.Lambda):
     def __init__(self, **kwargs):
@@ -218,22 +210,14 @@ class FFGoodness(BaseFFLayer, tf.keras.layers.Lambda):
             metric_duped=tf.keras.metrics.SparseCategoricalAccuracy(),
             **kwargs)
 
-    def ff_task_train_pos(self, X, y_true):
-        return self(X)
-
-    def ff_task_train_neg(self, X, y_true):
-        return self(X)
-
-    def ff_task_eval_pos(self, X, y_true):
-        return self(X)
-
-    def ff_task_eval_neg(self, X, y_true):
-        return self(X)
-
     def ff_task_eval_duped_pos(self, X, y_true):
-        return super().ff_task_eval_duped_pos(X, y_true)
+        m = tf.shape(y_true)[0]
+        y_pred = self(X)
+        y_pred = tf.reshape(y_pred, (m, -1))
+        self.ff_metric_duped.update_state(y_true, y_pred)
+        return y_pred
 
-class FFOverlay(BaseFFLayer, tf.keras.layers.Layer):
+class FFOverlay(BaseFFLayer, tf.keras.layers.Lambda):
     def __init__(self, embedding, **kwargs):
         '''
         When `ff_task_eval_pos` or `ff_task_transform` is called, it
@@ -247,26 +231,17 @@ class FFOverlay(BaseFFLayer, tf.keras.layers.Layer):
             embedding. a `Tensor` of shape
                 `(number of embeddings, features)`.
         '''
-        super().__init__(**kwargs)
         self.ff_embedding = tf.cast(embedding, tf.float32)
         self.ff_emb_shape = tf.shape(self.ff_embedding)[1:]
+        
+        def function(X):
+            X, y_true = X
+            return X + tf.gather(self.ff_embedding, y_true)
 
-    def ff_task_transform(self, X, y_true):
-        return X + tf.gather(self.ff_embedding, y_true)
-
-    def ff_task_train_pos(self, X, y_true):
-        return self.ff_task_transform(X, y_true)
-
-    def ff_task_train_neg(self, X, y_true):
-        return self.ff_task_transform(X, y_true)
-
-    def ff_task_eval_pos(self, X, y_true):
-        return self.ff_task_transform(X, y_true)
-
-    def ff_task_eval_neg(self, X, y_true):
-        return self.ff_task_transform(X, y_true)
+        super().__init__(function=function, **kwargs)
 
     def ff_task_eval_duped_pos(self, X, y_true):
+        X, y_true = X
         y_pred = tf.expand_dims(X, 1) + self.ff_embedding
         y_pred = tf.reshape(y_pred, (-1, *tf.unstack(self.ff_emb_shape)))
         return y_pred
@@ -274,18 +249,3 @@ class FFOverlay(BaseFFLayer, tf.keras.layers.Layer):
 class FFPreNorm(BaseFFLayer, tf.keras.layers.Lambda):
     def __init__(self, **kwargs):
         super().__init__(function=preNorm, **kwargs)
-
-    def ff_task_train_pos(self, X, y_true):
-        return self(X)
-
-    def ff_task_train_neg(self, X, y_true):
-        return self(X)
-
-    def ff_task_eval_pos(self, X, y_true):
-        return self(X)
-
-    def ff_task_eval_neg(self, X, y_true):
-        return self(X)
-
-    def ff_task_eval_duped_pos(self, X, y_true):
-        return self(X)

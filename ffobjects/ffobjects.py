@@ -84,11 +84,12 @@ class BaseFFLayer:
         self.gen_tasks_list()
         
     def gen_tasks_list(self):
-        self.tasks = {
+        self.tasks = { ## TODO: Not rely on ff_loss_pos, ff_loss_neg, ... Instead, predefine in FFLayers and require to define the loss and metrics?
             self.TASK_TRANSFORM:      self.ff_task_transform, 
             self.TASK_TRAIN_POS:      self.ff_task_train_pos      if self.ff_loss_pos     is not None else self.ff_task_transform, 
             self.TASK_TRAIN_NEG:      self.ff_task_train_neg      if self.ff_loss_neg     is not None else self.ff_task_transform,
             self.TASK_EVAL_POS:       self.ff_task_eval_pos       if self.ff_metric       is not None else self.ff_task_transform, 
+            self.TASK_EVAL_NEG:       self.ff_task_eval_neg       if self.ff_metric       is not None else self.ff_task_transform, 
             self.TASK_EVAL_DUPED_POS: self.ff_task_eval_duped_pos if self.ff_metric_duped is not None else self.ff_task_transform, 
         }
         
@@ -141,6 +142,11 @@ class BaseFFLayer:
         self._ff_update_metric_pos(y_true, y_pred)
         return y_pred
     
+    def ff_task_eval_neg(self, X, y_true):
+        y_pred = self(X)
+        self._ff_update_metric_neg(y_true, y_pred)
+        return y_pred
+
     def ff_task_eval_duped_pos(self, X, y_true):
         raise NotImplemented
     
@@ -155,8 +161,10 @@ class BaseFFLayer:
     
     def _ff_update_metric_pos(self, y_true, y_pred):
         self.ff_metric.update_state(y_true, y_pred)
-        
-    
+
+    def _ff_update_metric_neg(self, y_true, y_pred):
+        self.ff_metric.update_state(y_true, y_pred)
+
 # FFLayers inheriting the base class and a tf.keras.layers.Layer
 class FFDense(BaseFFLayer, tf.keras.layers.Dense):
     def __init__(self, th_pos, th_neg, **kwargs):

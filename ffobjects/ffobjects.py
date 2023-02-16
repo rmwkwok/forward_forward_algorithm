@@ -107,7 +107,7 @@ class BaseFFLayer:
         '''
         self.ff_task_fn = self.tasks[task]
     
-    def ff_do_task(self, X, y_true):
+    def ff_do_task(self, X, y_true=None):
         '''
         Calls the default task as set by calling `ff_set_task`.
 
@@ -120,22 +120,22 @@ class BaseFFLayer:
         '''
         return self.ff_task_fn(X, y_true)
 
-    def ff_task_transform(self, X, y_true):
+    def ff_task_transform(self, X, y_true=None):
         return self(X)
 
-    def ff_task_train_pos(self, X, y_true):
+    def ff_task_train_pos(self, X, y_true=None):
         return self(X)
 
-    def ff_task_train_neg(self, X, y_true):
+    def ff_task_train_neg(self, X, y_true=None):
         return self(X)
 
-    def ff_task_eval_pos(self, X, y_true):
+    def ff_task_eval_pos(self, X, y_true=None):
         return self(X)
 
-    def ff_task_eval_neg(self, X, y_true):
+    def ff_task_eval_neg(self, X, y_true=None):
         return self(X)
 
-    def ff_task_eval_duped_pos(self, X, y_true):
+    def ff_task_eval_duped_pos(self, X, y_true=None):
         return self(X)
 
 # FFLayers inheriting the base class and a tf.keras.layers.Layer
@@ -240,7 +240,7 @@ class FFOverlay(BaseFFLayer, tf.keras.layers.Lambda):
 
         super().__init__(function=function, **kwargs)
 
-    def ff_task_eval_duped_pos(self, X, y_true):
+    def ff_task_eval_duped_pos(self, X, y_true=None):
         X, y_true = X
         y_pred = tf.expand_dims(X, 1) + self.ff_embedding
         y_pred = tf.reshape(y_pred, (-1, *tf.unstack(self.ff_emb_shape)))
@@ -249,3 +249,20 @@ class FFOverlay(BaseFFLayer, tf.keras.layers.Lambda):
 class FFPreNorm(BaseFFLayer, tf.keras.layers.Lambda):
     def __init__(self, **kwargs):
         super().__init__(function=preNorm, **kwargs)
+
+class FFRoutedDense(FFDense):
+    def ff_set_route(self, route_pos, route_neg):
+        self.ff_route_pos = route_pos
+        self.ff_route_neg = route_neg
+
+    def _ff_call_loss_pos(self, y_true, y_pred):
+        return self.ff_loss_pos(y_true, y_pred * self.ff_route_pos)
+
+    def _ff_call_loss_neg(self, y_true, y_pred):
+        return self.ff_loss_neg(y_true, y_pred * self.ff_route_neg)
+
+    def _ff_update_metric_pos(self, y_true, y_pred):
+        self.ff_metric.update_state(y_true, y_pred * self.ff_route_pos)
+
+    def _ff_update_metric_neg(self, y_true, y_pred):
+        self.ff_metric.update_state(y_true, y_pred * self.ff_route_neg)

@@ -194,8 +194,8 @@ class FFOverlay(BaseFFLayer, tf.keras.layers.Layer):
                 `(number of embeddings, features)`.
         '''
         super().__init__(metric_duped='dummy', **kwargs)
-        self.embedding = tf.cast(embedding, tf.float32)
-        self.emb_shape = tf.shape(self.embedding)[1:]
+        self.ff_embedding = tf.cast(embedding, tf.float32)
+        self.ff_emb_shape = tf.shape(self.embedding)[1:]
     
     def ff_task_transform(self, X, y_true):
         y_pred = X + tf.gather(self.embedding, y_true)

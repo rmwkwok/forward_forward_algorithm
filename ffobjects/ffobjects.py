@@ -148,7 +148,7 @@ class FFDense(BaseFFLayer, tf.keras.layers.Dense):
     def ff_task_train_pos(self, X, y_true):
         with tf.GradientTape() as tape:
             y_pred = self(X)
-            loss = self._ff_call_loss_pos(y_true, y_pred)
+            loss = self.ff_loss_pos(y_true, y_pred)
         grads = tape.gradient(loss, self.trainable_weights)
         self.ff_opt.apply_gradients(zip(grads, self.trainable_weights))
         return y_pred
@@ -156,32 +156,20 @@ class FFDense(BaseFFLayer, tf.keras.layers.Dense):
     def ff_task_train_neg(self, X, y_true):
         with tf.GradientTape() as tape:
             y_pred = self(X)
-            loss = self._ff_call_loss_neg(y_true, y_pred)
+            loss = self.ff_loss_neg(y_true, y_pred)
         grads = tape.gradient(loss, self.trainable_weights)
         self.ff_opt.apply_gradients(zip(grads, self.trainable_weights))
         return y_pred
 
     def ff_task_eval_pos(self, X, y_true):
         y_pred = self(X)
-        self._ff_update_metric_pos(y_true, y_pred)
+        self.ff_metric.update_state(y_true, y_pred)
         return y_pred
 
     def ff_task_eval_neg(self, X, y_true):
         y_pred = self(X)
-        self._ff_update_metric_neg(y_true, y_pred)
+        self.ff_metric.update_state(y_true, y_pred)
         return y_pred
-
-    def _ff_call_loss_pos(self, y_true, y_pred):
-        return self.ff_loss_pos(y_true, y_pred)
-
-    def _ff_call_loss_neg(self, y_true, y_pred):
-        return self.ff_loss_neg(y_true, y_pred)
-
-    def _ff_update_metric_pos(self, y_true, y_pred):
-        self.ff_metric.update_state(y_true, y_pred)
-
-    def _ff_update_metric_neg(self, y_true, y_pred):
-        self.ff_metric.update_state(y_true, y_pred)
 
 class FFSoftmax(BaseFFLayer, tf.keras.layers.Dense):
     def __init__(self, **kwargs):
@@ -249,20 +237,3 @@ class FFOverlay(BaseFFLayer, tf.keras.layers.Lambda):
 class FFPreNorm(BaseFFLayer, tf.keras.layers.Lambda):
     def __init__(self, **kwargs):
         super().__init__(function=preNorm, **kwargs)
-
-class FFRoutedDense(FFDense):
-    def ff_set_route(self, route_pos, route_neg):
-        self.ff_route_pos = route_pos
-        self.ff_route_neg = route_neg
-
-    def _ff_call_loss_pos(self, y_true, y_pred):
-        return self.ff_loss_pos(y_true, y_pred * self.ff_route_pos)
-
-    def _ff_call_loss_neg(self, y_true, y_pred):
-        return self.ff_loss_neg(y_true, y_pred * self.ff_route_neg)
-
-    def _ff_update_metric_pos(self, y_true, y_pred):
-        self.ff_metric.update_state(y_true, y_pred * self.ff_route_pos)
-
-    def _ff_update_metric_neg(self, y_true, y_pred):
-        self.ff_metric.update_state(y_true, y_pred * self.ff_route_neg)

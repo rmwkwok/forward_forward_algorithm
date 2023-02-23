@@ -80,11 +80,12 @@ An `FFGoodness` replaces the `FFSoftmax` to receive some `FFDense`'s outputs for
 
 Although this formula was used by the paper as an example for positive data, I used the same also for negative data.
 
-## The data
+## Result 1
+### The data
 
 Unlike the paper, I used digits 0, 1, 2, 3, and 4 from the MNIST dataset as the positive-pass's data, and the rest of the digits as the negative-pass's. At training, both positive and negative pass data are used. At evaluation, only a separate set of positive-pass data is done.
 
-## Benchmark and summary
+### Benchmark and summary
 
 The basic supervised and unsupervised results use the following settings:
 
@@ -107,6 +108,6 @@ Their validation accuracies are:
 
 A similar setting with backprop can reach over 99% easily within 20 epochs.
 
-For other results, observations, validation curves, and the layers' details, refer to examples/basic/main.ipynb.
+For other results, observations, validation curves, and the layers' details, refer to examples/five_digits_as_positive/main.ipynb.
 
 

@@ -96,7 +96,7 @@ This time, all digits were used as positive data, instead of just five of them i
 
 (No hyperparameter tuning were done)
     
-For more explanations and discussions, refer to this article.
+For more explanations and discussions, refer to [this article](https://medium.com/@rmwkwok/some-forward-forward-algorithm-experiments-3a9d6f9503b6?source=friends_link&sk=34556e26da24aaa7a7aa5499eff5a993).
 
 ## Result 1 (Updated on 14 Feb 2023)
 ### The data

@@ -237,3 +237,87 @@ class FFOverlay(BaseFFLayer, tf.keras.layers.Lambda):
 class FFPreNorm(BaseFFLayer, tf.keras.layers.Lambda):
     def __init__(self, **kwargs):
         super().__init__(function=preNorm, **kwargs)
+
+class FFRoutedDense(BaseFFLayer, tf.keras.layers.Dense):
+    def __init__(self, th_pos, th_neg, **kwargs):
+        super().__init__(
+            activation='relu', metric=FFMetric(),
+            loss_pos=FFLoss(th_pos), loss_neg=FFLoss(th_neg), **kwargs)
+
+    def ff_set_ctu_map(self, ctu_map_pos, ctu_map_neg):
+        self._ff_ctu_map_pos = ctu_map_pos
+        self._ff_ctu_map_neg = ctu_map_neg
+        return self
+
+    def ff_set_classes(self, classes):
+        self._ff_classes = classes
+        return self
+
+    def _ff_route_y_pred(self, y_pred, ctu_map):
+        route = tf.nn.embedding_lookup(ctu_map, self._ff_classes)
+        y_pred_routed = y_pred * route
+        return y_pred_routed
+
+    def ff_task_train_pos(self, X, y_true):
+        with tf.GradientTape() as tape:
+            y_pred = self(X)
+            y_pred_routed = self._ff_route_y_pred(y_pred, self._ff_ctu_map_pos)
+            loss = self.ff_loss_pos(y_true, y_pred_routed)
+        grads = tape.gradient(loss, self.trainable_weights)
+        self.ff_opt.apply_gradients(zip(grads, self.trainable_weights))
+        return y_pred
+
+    def ff_task_train_neg(self, X, y_true):
+        with tf.GradientTape() as tape:
+            y_pred = self(X)
+            y_pred_routed = self._ff_route_y_pred(y_pred, self._ff_ctu_map_neg)
+            loss = self.ff_loss_neg(y_true, y_pred_routed)
+        grads = tape.gradient(loss, self.trainable_weights)
+        self.ff_opt.apply_gradients(zip(grads, self.trainable_weights))
+        return y_pred
+
+    def ff_task_eval_pos(self, X, y_true):
+        y_pred = self(X)
+        y_pred_routed = self._ff_route_y_pred(y_pred, self._ff_ctu_map_pos)
+        self.ff_metric.update_state(y_true, y_pred_routed)
+        return y_pred
+
+    def ff_task_eval_neg(self, X, y_true):
+        y_pred = self(X)
+        y_pred_routed = self._ff_route_y_pred(y_pred, self._ff_ctu_map_neg)
+        self.ff_metric.update_state(y_true, y_pred_routed)
+        return y_pred
+
+# class FFClassFilter(BaseFFLayer, tf.keras.layers.Lambda):
+#     def __init__(self, keep_classes, num_classes, **kwargs):
+#         self.ff_keep_classes = tf.transpose(
+#                                    tf.reduce_sum(
+#                                        tf.one_hot(keep_classes, num_classes),
+#                                        axis=0,
+#                                        keepdims=True))
+
+#         def function(X):
+#             X, y_true = X
+#             arg = tf.equal(
+#                       tf.squeeze(
+#                           tf.one_hot(y_true, num_classes) @\
+#                           self.ff_keep_classes), 1.)
+#             X = tf.boolean_mask(X, arg)
+#             y_true = tf.boolean_mask(y_true, arg)
+#             return (X, y_true)
+
+#         super().__init__(function=function, **kwargs)
+
+# class FFGoodness2(BaseFFLayer, tf.keras.layers.Layer):
+#     def __init__(self, **kwargs):
+#         super().__init__(
+#             metric=tf.keras.metrics.SparseCategoricalAccuracy(),
+#             **kwargs)
+
+#     def ff_task_eval_pos(self, X, y_true):
+#         m = tf.shape(y_true)[0]
+#         y_pred = X
+#         y_pred = tf.reshape(y_pred, (m, 10, -1))
+#         y_pred = goodness(y_pred)
+#         self.ff_metric.update_state(y_true, y_pred)
+#         return y_pred

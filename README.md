@@ -80,7 +80,25 @@ An `FFGoodness` replaces the `FFSoftmax` to receive some `FFDense`'s outputs for
 
 Although this formula was used by the paper as an example for positive data, I used the same also for negative data.
 
-## Result 1
+## Result 2 (Updated on 26 Feb 2023)
+### The data
+
+This time, all digits were used as positive data, instead of just five of them in Result 1. However, unlike the paper (again), I didn't use hybrid digits as negative data for unsupervised-wise FF. Instead, I split the digits into two sets (A & B), and divide a layer into two halves. The first half took set A as positive data and set B sa negative, whereas the second half did the opposite. Three digit splitting were explored, including (for both supervised and unsupervised-wise FF) "random splitting", "same splitting", and (only for supervised-wise FF) "no splitting".
+
+### Benchmark and summary
+
+1. unsupervised-wise FF:
+    - 97.1% @ `units = 2000` and Random splitting
+
+2. supervised-wise FF:
+    - 94.7% @ `units = 2000` and Random splitting
+    - 95.1% @ `units = 2000` and No splitting
+
+(No hyperparameter tuning were done)
+    
+For more explanations and discussions, refer to this article.
+
+## Result 1 (Updated on 14 Feb 2023)
 ### The data
 
 Unlike the paper, I used digits 0, 1, 2, 3, and 4 from the MNIST dataset as the positive-pass's data, and the rest of the digits as the negative-pass's. At training, both positive and negative pass data are used. At evaluation, only a separate set of positive-pass data is done.

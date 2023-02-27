@@ -3,7 +3,7 @@
 Paper: [Geoffrey Hinton. The Forward-Forward Algorithm: Some Preliminary Investigations](https://www.cs.toronto.edu/~hinton/FFA13.pdf)
 
 ## Give up thinking it as a Model
-I have rethought and concluded that building FF-based layers into a Model is not flexible enough for researching new ideas. Therefore, I gave up the concept of Model that I had adopted in my [last implementation](https://github.com/rmwkwok/forward_forward_algorithm/tree/main/old_model_based_implementation), and re-implemented this work which only has FFLayers (but no FFModel). A FFLayer (e.g. `FFDense`) class is defined by inheriting the `BaseFFLayer` and the corresponding Tensorflow Layer (e.g. `Dense`). 
+I have rethought and concluded that building FF-based layers into a Model is not flexible enough for researching new ideas. Therefore, I gave up the concept of Model that I had adopted in my [last implementation](https://github.com/rmwkwok/forward_forward_algorithm/tree/main/old_model_based_implementation), and re-implemented this work which only has FFLayers (but no FFModel). A FFLayer (e.g. `FFDense`) class inherits the `BaseFFLayer` that contains a Tensorflow Layer (e.g. `Dense`). 
 
 ## The BaseFFLayer class
 The `BaseFFLayer` enables a created FFLayer to perform 5 tasks: 

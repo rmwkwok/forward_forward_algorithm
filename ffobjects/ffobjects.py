@@ -39,12 +39,17 @@ class BaseFFLayer:
     TASK_EVAL_NEG       = 'TASK_EVAL_NEG'
     TASK_EVAL_DUPED_POS = 'TASK_EVAL_DUPED_POS'
 
-    def __init__(self, optimizer=None,  metric=None, metric_duped=None,
-                 loss_pos=None, loss_neg=None, **kwargs):
+    def __init__(
+        self,
+        tfl,
+        optimizer=None,
+        metric=None,
+        metric_duped=None,
+        loss_pos=None,
+        loss_neg=None,
+        **kwargs
+    ):
         '''
-        Turn a Tensorflow layer into a FFLayer by defining a class
-        inheriting this class and the Tensorflow layer's class.
-
         6 tasks are predefined. They accept `X` and `y_true` as input,
         and produces `y_pred` as output:
             - transform: e.g. tf.keras.layers.Dense(X)
@@ -63,6 +68,7 @@ class BaseFFLayer:
         python function that calls the `ff_do_task()`
 
         Args:
+            tfl: a `tf.keras.layers.Layer` object.
             optimizer: `tf.keras.optimizers.Optimizer` object. Used in
                 `TASK_TRAIN_POS` and `TASK_TRAIN_NEG`.
             metric: `tf.keras.metrics.Metric` object. Used in
@@ -76,7 +82,7 @@ class BaseFFLayer:
             **kwargs: passed to the inherited `tf.keras.layers.Layer`
                 object by the FFLayer that inherits this class.
         '''
-        super().__init__(**kwargs)
+        self.tfl = tfl
         self.ff_opt = optimizer
         self.ff_metric = metric
         self.ff_metric_duped = metric_duped
@@ -94,29 +100,13 @@ class BaseFFLayer:
 
     def ff_set_task(self, task):
         '''
-        Set the default task to be calling `ff_do_task`.
-
-        Args:
-            task: one of `'TASK_TRANSFORM'`, `'TASK_TRAIN_POS'`,
-                `'TASK_TRAIN_NEG'`, `'TASK_EVAL_POS'`,
-                `'TASK_EVAL_DUPED_POS'` defined in this class. For
-                example, `BaseFFLayer.TASK_TRANSFORM`.
-
-        Returns:
-            y_pred: `Tensor`. Transformation of `X`.
+        Set the default task.
         '''
         self.ff_task_fn = self.tasks[task]
     
     def ff_do_task(self, X, y_true=None):
         '''
-        Calls the default task as set by calling `ff_set_task`.
-
-        Args:
-            X: `Tensor`. Input data.
-            y_true: `Tensor`. Target data.
-
-        Returns:
-            y_pred: `Tensor`. Transformation of `X`.
+        Calls the default task.
         '''
         return self.ff_task_fn(X, y_true)
 
@@ -138,12 +128,23 @@ class BaseFFLayer:
     def ff_task_eval_duped_pos(self, X, y_true=None):
         return self(X)
 
+    def __call__(self, *args, **kwargs):
+        return self.tfl(*args, **kwargs)
+    
+    @property
+    def trainable_weights(self):
+        return self.tfl.trainable_weights
+
 # FFLayers inheriting the base class and a tf.keras.layers.Layer
-class FFDense(BaseFFLayer, tf.keras.layers.Dense):
-    def __init__(self, th_pos, th_neg, **kwargs):
+class FFDense(BaseFFLayer):
+    def __init__(self, th_pos, th_neg, optimizer, **tfl_kwargs):
         super().__init__(
-            activation='relu', metric=FFMetric(),
-            loss_pos=FFLoss(th_pos), loss_neg=FFLoss(th_neg), **kwargs)
+            tfl=tf.keras.layers.Dense(activation='relu', **tfl_kwargs),
+            optimizer=optimizer,
+            metric=FFMetric(),
+            loss_pos=FFLoss(th_pos), 
+            loss_neg=FFLoss(th_neg), 
+        )
 
     def ff_task_train_pos(self, X, y_true):
         with tf.GradientTape() as tape:
@@ -171,12 +172,14 @@ class FFDense(BaseFFLayer, tf.keras.layers.Dense):
         self.ff_metric.update_state(y_true, y_pred)
         return y_pred
 
-class FFSoftmax(BaseFFLayer, tf.keras.layers.Dense):
-    def __init__(self, **kwargs):
+class FFSoftmax(BaseFFLayer):
+    def __init__(self, optimizer, **tfl_kwargs):
         super().__init__(
-            loss_pos=tf.keras.losses.SparseCategoricalCrossentropy(True),
+            tfl=tf.keras.layers.Dense(activation='linear', **tfl_kwargs),
+            optimizer=optimizer,
             metric=tf.keras.metrics.SparseCategoricalAccuracy(),
-            **kwargs)
+            loss_pos=tf.keras.losses.SparseCategoricalCrossentropy(True),
+        )
 
     def ff_task_train_pos(self, X, y_true):
         with tf.GradientTape() as tape:
@@ -191,12 +194,12 @@ class FFSoftmax(BaseFFLayer, tf.keras.layers.Dense):
         self.ff_metric.update_state(y_true, y_pred)
         return y_pred
 
-class FFGoodness(BaseFFLayer, tf.keras.layers.Lambda):
-    def __init__(self, **kwargs):
+class FFGoodness(BaseFFLayer):
+    def __init__(self, **tfl_kwargs):
         super().__init__(
-            function=goodness,
+            tfl=tf.keras.layers.Lambda(goodness, **tfl_kwargs),
             metric_duped=tf.keras.metrics.SparseCategoricalAccuracy(),
-            **kwargs)
+        )
 
     def ff_task_eval_duped_pos(self, X, y_true):
         m = tf.shape(y_true)[0]
@@ -205,8 +208,8 @@ class FFGoodness(BaseFFLayer, tf.keras.layers.Lambda):
         self.ff_metric_duped.update_state(y_true, y_pred)
         return y_pred
 
-class FFOverlay(BaseFFLayer, tf.keras.layers.Lambda):
-    def __init__(self, embedding, **kwargs):
+class FFOverlay(BaseFFLayer):
+    def __init__(self, embedding, **tfl_kwargs):
         '''
         When `ff_task_eval_pos` or `ff_task_transform` is called, it
         overlays an embedding onto a sample based on the sample's
@@ -226,7 +229,9 @@ class FFOverlay(BaseFFLayer, tf.keras.layers.Lambda):
             X, y_true = X
             return X + tf.gather(self.ff_embedding, y_true)
 
-        super().__init__(function=function, **kwargs)
+        super().__init__(
+            tfl=tf.keras.layers.Lambda(function, **tfl_kwargs),
+        )
 
     def ff_task_eval_duped_pos(self, X, y_true=None):
         X, y_true = X
@@ -234,15 +239,21 @@ class FFOverlay(BaseFFLayer, tf.keras.layers.Lambda):
         y_pred = tf.reshape(y_pred, (-1, *tf.unstack(self.ff_emb_shape)))
         return y_pred
 
-class FFPreNorm(BaseFFLayer, tf.keras.layers.Lambda):
-    def __init__(self, **kwargs):
-        super().__init__(function=preNorm, **kwargs)
-
-class FFRoutedDense(BaseFFLayer, tf.keras.layers.Dense):
-    def __init__(self, th_pos, th_neg, **kwargs):
+class FFPreNorm(BaseFFLayer):
+    def __init__(self, **tfl_kwargs):
         super().__init__(
-            activation='relu', metric=FFMetric(),
-            loss_pos=FFLoss(th_pos), loss_neg=FFLoss(th_neg), **kwargs)
+            tfl=tf.keras.layers.Lambda(preNorm, **tfl_kwargs),
+        )
+
+class FFRoutedDense(BaseFFLayer):
+    def __init__(self, th_pos, th_neg, optimizer, **tfl_kwargs):
+        super().__init__(
+            tfl=tf.keras.layers.Dense(activation='relu', **tfl_kwargs),
+            optimizer=optimizer,
+            metric=FFMetric(),
+            loss_pos=FFLoss(th_pos), 
+            loss_neg=FFLoss(th_neg), 
+        )
 
     def ff_set_ctu_map(self, ctu_map_pos, ctu_map_neg):
         self._ff_ctu_map_pos = ctu_map_pos
@@ -288,8 +299,8 @@ class FFRoutedDense(BaseFFLayer, tf.keras.layers.Dense):
         self.ff_metric.update_state(y_true, y_pred_routed)
         return y_pred
 
-# class FFClassFilter(BaseFFLayer, tf.keras.layers.Lambda):
-#     def __init__(self, keep_classes, num_classes, **kwargs):
+# class FFClassFilter(BaseFFLayer):
+#     def __init__(self, keep_classes, num_classes, **tfl_kwargs):
 #         self.ff_keep_classes = tf.transpose(
 #                                    tf.reduce_sum(
 #                                        tf.one_hot(keep_classes, num_classes),
@@ -306,13 +317,16 @@ class FFRoutedDense(BaseFFLayer, tf.keras.layers.Dense):
 #             y_true = tf.boolean_mask(y_true, arg)
 #             return (X, y_true)
 
-#         super().__init__(function=function, **kwargs)
-
-# class FFGoodness2(BaseFFLayer, tf.keras.layers.Layer):
-#     def __init__(self, **kwargs):
 #         super().__init__(
+#             tfl=tf.keras.layers.Lambda(function, **tfl_kwargs),
+#         )
+
+# class FFGoodness2(BaseFFLayer):
+#     def __init__(self, **tfl_kwargs):
+#         super().__init__(
+#             tfl=tf.keras.layers.Layer,
 #             metric=tf.keras.metrics.SparseCategoricalAccuracy(),
-#             **kwargs)
+#             **tfl_kwargs)
 
 #     def ff_task_eval_pos(self, X, y_true):
 #         m = tf.shape(y_true)[0]

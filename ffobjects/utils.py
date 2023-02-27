@@ -72,7 +72,7 @@ def _get_route(num_classes, num_units, classes_to_units_list):
                    for classes, units in classes_to_units_list])
 
 def get_routes(num_classes, num_units, num_routes, seed=1,
-               split_mode='NoSplitting'):
+               split_mode=None):
     '''
     Given `num_classes` and `num_units`, generate `num_routes` routes
         based on the criteria set by `classes_to_units_list`.
@@ -81,6 +81,8 @@ def get_routes(num_classes, num_units, num_routes, seed=1,
     `mode` is one of `['NoSplitting', 'RandomSplitting',
         'SameSplitting']`
     '''
+    assert split_mode in ['NoSplitting', 'RandomSplitting', 'SameSplitting']
+
     classes = tf.range(num_classes)
     classes = tf.random.shuffle(classes, seed=seed)
 
